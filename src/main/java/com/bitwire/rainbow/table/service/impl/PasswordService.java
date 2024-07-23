@@ -1,5 +1,6 @@
 package com.bitwire.rainbow.table.service.impl;
 
+import com.bitwire.rainbow.table.domain.dto.PasswordMultiResponseDTO;
 import com.bitwire.rainbow.table.domain.model.Password;
 import com.bitwire.rainbow.table.domain.repository.PasswordRepository;
 import com.bitwire.rainbow.table.service.PasswordServiceInterface;
@@ -8,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.NoSuchElementException;
 
 @Service
@@ -31,18 +33,15 @@ public class PasswordService implements PasswordServiceInterface {
     @Override
     public Password create(Password password) {
         String plainText = password.getPlainText();
-        String hash = Hashing.sha256().hashString(plainText, StandardCharsets.UTF_8).toString();
 
-        password.setHash(hash);
+        this.verify(plainText);
 
-        var passwordAlreadyExist = this.findByHash(hash);
-
-        if (passwordAlreadyExist != null) {
-            throw new IllegalArgumentException("Password already exists");
-        }
+        password.setHash(this.plainTextToHash(plainText));
 
         return passwordRepository.save(password);
     }
+
+
 
     @Override
     public Password update(Password password) {
@@ -74,5 +73,24 @@ public class PasswordService implements PasswordServiceInterface {
         var hash = this.plainTextToHash(plainText);
 
         return this.findByHash(hash);
+    }
+
+    @Override
+    public PasswordMultiResponseDTO createMany(List<String> passwords) {
+
+        var ResponseDTO = new PasswordMultiResponseDTO();
+
+        for (String password : passwords) {
+            var passwordVerified = this.verify(password);
+            if (passwordVerified != null) {
+               ResponseDTO.getKnown().add(passwordVerified);
+            }else{
+                var passwordEntity = new Password(password, this.plainTextToHash(password));
+                var passwordCreated = this.create(passwordEntity);
+                ResponseDTO.getNewPasswords().add(passwordCreated);
+            }
+        }
+
+        return ResponseDTO;
     }
 }

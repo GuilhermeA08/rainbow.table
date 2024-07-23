@@ -15,7 +15,7 @@ public class Password {
     private Long id;
 
     private String plainText;
-    @Column(unique = true)
+    @Column(unique = true, nullable = false)
     private String hash;
 
     public Password(String plainText, String hash) {
